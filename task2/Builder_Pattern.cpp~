@@ -1,0 +1,83 @@
+//Builder Pattern
+//Sam Emison
+//11/17/2025
+
+#include <string>
+#include <chrono>
+#include <memory>
+#include <stdexcept>
+
+enum class ProjectStatus { PLANNING, ACTIVE, COMPLETED };
+
+class Project {
+private:
+    std::string name;
+    std::chrono::system_clock::time_point startDate;
+    ProjectStatus status;
+    std::chrono::system_clock::time_point completionDate;
+    
+    Project(const std::string& name, std::chrono::system_clock::time_point startDate)
+        : name(name), startDate(startDate), status(ProjectStatus::PLANNING) {}
+        
+public:
+    class Builder {
+    private:
+        std::string name;
+        std::chrono::system_clock::time_point startDate;
+        std::chrono::system_clock::time_point completionDate{};
+        ProjectStatus status = ProjectStatus::PLANNING;
+        
+    public:
+        Builder(const std::string& name, std::chrono::system_clock::time_point startDate)
+            : name(name), startDate(startDate)
+        {
+            // Rule 1: name must not be empty
+            if (name.empty()) {
+                throw std::invalid_argument("Project name must not be empty");
+            }
+
+            // Rule 2: startDate must not be in the past
+            auto now = std::chrono::system_clock::now();
+            if (startDate < now) {
+                throw std::invalid_argument("Start date cannot be in the past");
+            }
+        }
+        
+        Builder& withCompletionDate(std::chrono::system_clock::time_point completionDate) {
+            this->completionDate = completionDate;
+            this->status = ProjectStatus::COMPLETED;
+            return *this;
+        }
+        
+        std::unique_ptr<Project> build() {
+            auto now = std::chrono::system_clock::now();
+
+            // Rule 3: startDate must not be in the past (re-validate)
+            if (startDate < now) {
+                throw std::invalid_argument("Start date cannot be in the past");
+            }
+
+            // Check if completionDate was set
+            bool hasCompletionDate = (completionDate.time_since_epoch().count() != 0);
+
+            if (hasCompletionDate) {
+
+                // Rule 2: completionDate must be after startDate
+                if (completionDate <= startDate) {
+                    throw std::invalid_argument("Completion date must be after start date");
+                }
+
+                // Rule 1: status must be COMPLETED if completionDate exists
+                if (status != ProjectStatus::COMPLETED) {
+                    throw std::invalid_argument("Completion date requires status COMPLETED");
+                }
+            }
+
+            auto project = std::make_unique<Project>(name, startDate);
+            project->completionDate = this->completionDate;
+            project->status = this->status;
+            return project;
+        }
+    };
+};
+
